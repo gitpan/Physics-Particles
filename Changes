@@ -1,5 +1,15 @@
 Revision history for Perl extension Physics::Particles.
 
+1.00  Sun Jul 6 17:54:49 2003
+	- Interface changes!
+	- Rewrote parts of the module to increase accuracy
+	- Forces aren't supposed to modify particles directly now
+	  but instead return a force vector.
+	- Due to the changes mentioned above, the inner-solar-system
+	  simulation broke. Can't get it to work because of the damned
+	  constants involved. There are, however, better examples
+	  in the Physics::Springs and Physics::Springs::Friction modules.
+
 0.10  Wed Mar 26 12:32:56 2003
 	- Namespace changed from Simulation::Particle to
 	  Physics::Particle as suggested on the modules list.

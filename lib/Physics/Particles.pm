@@ -9,12 +9,15 @@ use 5.006;
 use strict;
 use warnings;
 
+use constant C_VACUUM         => 299792458;
+use constant C_VACUUM_SQUARED => 299792458 * 299792458;
+
 use Carp;
 
 use Data::Dumper;
 
 use vars qw/$VERSION/;
-$VERSION = '0.10';
+$VERSION = '1.00';
 
 
 # constructor new
@@ -24,27 +27,27 @@ $VERSION = '0.10';
 # returns freshly created simulator object.
 
 sub new {
-   my $proto = shift;
-   my $class = ref $proto || $proto;
+	my $proto = shift;
+	my $class = ref $proto || $proto;
 
-   # Make a new object with default values.
-   my $self = {
-     forces => [], # All forces (callbacks) will be stored here.
-     p      => [], # All particles (hashrefs) will be stored here.
-     p_attr => {
-                 x => 0,
-                 y => 0,
-                 z => 0,
-                 vx => 0,
-                 vy => 0,
-                 vz => 0,
-                 m => 1,
-                 id => '',
-               },
-     @_
-   };
+	# Make a new object with default values.
+	my $self = {
+		forces => [], # All forces (callbacks) will be stored here.
+		p      => [], # All particles (hashrefs) will be stored here.
+		p_attr => {
+			x => 0,
+			y => 0,
+			z => 0,
+			vx => 0,
+			vy => 0,
+			vz => 0,
+			m => 1,
+			n => '',
+		},
+		@_
+	};
 
-   bless $self => $class;
+	bless $self => $class;
 }
 
 
@@ -55,14 +58,14 @@ sub new {
 # unique ID, or whatever properties you fancy.
 
 sub set_particle_default {
-   my $self = shift;
-   my $hashref = shift;
-
-   ref $hashref eq 'HASH'
-     or croak "Must pass hash reference to set_particle_default().";
-
-   $self->{p_attr} = $hashref;
-   return 1;
+	my $self = shift;
+	my $hashref = shift;
+	
+	ref $hashref eq 'HASH'
+	  or croak "Must pass hash reference to set_particle_default().";
+	
+	$self->{p_attr} = $hashref;
+	return 1;
 }
 
 # method add_particle
@@ -72,21 +75,25 @@ sub set_particle_default {
 # set_particle_default.
 # A new particle represented by the attributes is then
 # created in the simulation and its particle number is
-# returned.
+# returned. Attributes starting with an underscore are
+# reserved to internal attributes (so don't use any of them).
 
 sub add_particle {
-   my $self = shift;
-
-   my $particle = {
-      %{$self->{p_attr}},
-      @_
-   };
-
-   my $particle_no = $self->_make_particle();
-
-   $self->{p}[$particle_no] = $particle;
-
-   return $particle_no;
+	my $self = shift;
+	
+	my $particle = {
+		%{$self->{p_attr}},
+		@_,
+		_fx => 0,
+		_fy => 0,
+		_fz => 0,
+	};
+	
+	my $particle_no = $self->_make_particle();
+	
+	$self->{p}[$particle_no] = $particle;
+	
+	return $particle_no;
 }
 
 
@@ -96,15 +103,15 @@ sub add_particle {
 # appends an empty particle to the particle list.
 
 sub _make_particle {
-   my $self = shift;
-   my $count = 0;
-   foreach (@{$self->{p}}) {
-      return $count unless ref $_;
-      $count++;
-   }
-
-   push @{ $self->{p} }, undef;
-   return $count;
+	my $self = shift;
+	my $count = 0;
+	foreach (@{$self->{p}}) {
+		return $count unless ref $_;
+		$count++;
+	}
+	
+	push @{ $self->{p} }, undef;
+	return $count;
 }
 
 
@@ -113,9 +120,9 @@ sub _make_particle {
 # Removes all particles from the simulation.
 
 sub clear_particles {
-   my $self = shift;
-   $self->{p} = [];
-   return 1;
+	my $self = shift;
+	$self->{p} = [];
+	return 1;
 }
 
 
@@ -126,14 +133,14 @@ sub clear_particles {
 # Returns 1 on success, 0 otherwise.
 
 sub remove_particle {
-   my $self = shift;
-   my $particle_no = shift;
-
-   return 0 if $particle_no < 0 || $particle_no > $#{$self->{p}};
-
-   $self->{p}[$particle_no] = undef;
-
-   return 1;
+	my $self = shift;
+	my $particle_no = shift;
+	
+	return 0 if $particle_no < 0 || $particle_no > $#{$self->{p}};
+	
+	$self->{p}[$particle_no] = undef;
+	
+	return 1;
 }
 
 
@@ -142,14 +149,19 @@ sub remove_particle {
 # Adds a new force to the simulation.
 # Takes a subroutine reference (the force) as argument,
 # appends it to the list of forces and returns the force it
-# just appended.
+# just appended. Second argument is optional and defaults to false.
+# It is a boolean indicating whether or not the force is symmetric.
+# Symmetric means that the force particle1 excerts on particle2
+# is exactly zero minus the force particle2 excerts on particle1.
 
 sub add_force {
-   my $self = shift;
-   my $force = shift;
-
-   push @{$self->{forces}}, $force;
-   return $force;
+	my $self = shift;
+	my $force = shift;
+	my $symmetric = shift;
+	$symmetric = 0 unless defined $symmetric;
+	
+	push @{$self->{forces}}, [$force, $symmetric];
+	return $force;
 }
 
 
@@ -161,31 +173,78 @@ sub add_force {
 # passed to every force subroutine.
 
 sub iterate_step {
-   my $self = shift;
-   my @params = @_;
+	my $self = shift;
+	my @params = @_;
 
-   my $new_state = [];
+	my $forces    = [];
+	foreach (@{ $self->{p} }) {
+		push @$forces, [$_->{_fx}, $_->{_fy}, $_->{_fz}];
+		$_->{_fx} = $_->{_fy} = $_->{_fz} = 0;
+	}
 
-   my $p_no = 0;
-   foreach my $p (@{ $self->{p} }) {
-      my $new_p = { %$p };
+	my $new_state = [];
 
-      foreach my $force (@{$self->{forces}}) {
-         my $exc_no = 0;
-         foreach my $excerter (@{$self->{p}}) {
-            $exc_no++, next if $exc_no == $p_no;
-            $force->($new_p, $excerter, \@params);
-            $exc_no++;
-         }
+	my $p_no = 0;
+	foreach my $p (@{ $self->{p} }) {
+		my $new_p = { %$p };
+		push @$new_state, $new_p;
+		my $f = $forces->[$p_no];
+		foreach my $force_def (@{$self->{forces}}) {
+			my $symm = $force_def->[1];
+			my $force = $force_def->[0];
+			my $exc_no = 0;
+			foreach my $excerter (@{$self->{p}}) {
+				last if $symm and $exc_no >= $p_no;
+				$exc_no++, next if $exc_no == $p_no;
+				my @this_f = $force->(
+					$p,
+					$excerter,
+					\@params
+				);
+				$f->[0] += $this_f[0];
+				$f->[1] += $this_f[1];
+				$f->[2] += $this_f[2];
+				if ($symm) {
+					$forces->[$exc_no][0] -= $this_f[0];
+					$forces->[$exc_no][1] -= $this_f[1];
+					$forces->[$exc_no][2] -= $this_f[2];
+				}
+				$exc_no++;
+			}
+		}
+		$p_no++;
+	}
 
-      }
-      push @$new_state, $new_p;
-      $p_no++;
-   }
+	$p_no = 0;
+	foreach my $new_p (@$new_state) {
+		my $f = $forces->[$p_no++];
+		# accel_i = force_i / mass (i-th component)
+		my $m = $new_p->{m} /
+			sqrt(1 -
+				($new_p->{vx}**2 +
+				 $new_p->{vy}**2 +
+				 $new_p->{vz}**2) /
+			 	C_VACUUM_SQUARED
+			);
+		my @a = ($f->[0] / $m, $f->[1] / $m, $f->[2] / $m);
 
-   $self->{p} = $new_state;
+		@a = map $_ * $params[0], @a;
+		
+		$new_p->{x} += $new_p->{vx} * $params[0] +
+				0.5 * $a[0] * $params[0];
+		$new_p->{y} += $new_p->{vy} * $params[0] +
+				0.5 * $a[1] * $params[0];
+		$new_p->{z} += $new_p->{vz} * $params[0] +
+				0.5 * $a[2] * $params[0];
 
-   return 1;
+		$new_p->{vx} += $a[0];
+		$new_p->{vy} += $a[1];
+		$new_p->{vz} += $a[2];
+	}
+	
+	$self->{p} = $new_state;
+
+	return 1;
 }
 
 
@@ -194,8 +253,8 @@ sub iterate_step {
 # Returns a Data::Dumper dump of the state of all particles.
 
 sub dump_state {
-   my $self = shift;
-   return Dumper($self->{p});
+	my $self = shift;
+	return Dumper($self->{p});
 }
 
 1;
@@ -211,51 +270,25 @@ Physics::Particles - Simulate particle dynamics
 
 =head1 VERSION
 
-Current version is 0.10.
+Current version is 1.00.
+Version 1.00 and later are incompatible to versions below 1.00.
 
 =head1 SYNOPSIS
 
-  # Taken from the tests.
-  # This is missing some code and constants and
-  # is therefore not runnable per se.
-  
   use Physics::Particles;
   
-  # This'll be the inner solar system.
   my $sim = Physics::Particles->new();
   
-  # Uncommented example code following!
-  # This is gravity!
   $sim->add_force(
      sub {
-        my $p = shift;
+        my $particle = shift;
         my $excerter = shift;
         my $params = shift;
         my $time_diff = $params->[0];
-  
-        my $dist = sqrt(
-                    ( AU * ($p->{x} - $excerter->{x}) )**2 +
-                    ( AU * ($p->{y} - $excerter->{y}) )**2 +
-                    ( AU * ($p->{z} - $excerter->{z}) )**2
-                   );
-        my $acc = ( $dist==0 ? 0 :
-                    G * $excerter->{m} * MEARTH / $dist**2 );
-        $acc = [
-                 map { $acc * AU * ($excerter->{$_} - $p->{$_}) }
-                     qw/x y z/
-               ];
-  
-        $p->{x}  += $p->{vx} * $time_diff +
-                    $acc->[0]*0.5*$time_diff**2/AU;
-        $p->{y}  += $p->{vy} * $time_diff +
-                    $acc->[1]*0.5*$time_diff**2/AU;
-        $p->{z}  += $p->{vz} * $time_diff +
-                    $acc->[2]*0.5*$time_diff**2/AU;
-  
-        $p->{vx} += $acc->[0]*$time_diff/AU;
-        $p->{vy} += $acc->[1]*$time_diff/AU;
-        $p->{vz} += $acc->[2]*$time_diff/AU;
+	# ...
+        return($force_x, $force_y, $force_z);
      },
+     1   # 1 => symmetric force, 0 => asymmetric force
   );
   
   $sim->add_particle(
@@ -269,7 +302,6 @@ Current version is 0.10.
     vx => 0.004046276,  vy => 0.024697922,  vz => 0.0127737,
     m  => 0.05525787,   n  => 'mercury',
   );
-  
   
   # [...]
   
@@ -319,15 +351,22 @@ The force subroutines are passed three parameters. First is the
 particle that should be modified according to the effect of the force.
 Second is the particle that excerts the force, and the third
 argument will be an array reference of parameters passed to the
-iterate_step method at run time.
+iterate_step method at run time. The first element of this array
+I<should> be the time slice for which you are to calculate the force vector.
 
-Yes, unfortunately in this version, forces actually have to modify
-the particles themselves. Their return value is currently
-ignored, but in future versions of this module, forces might be
-required to return a vector indicating the magnitude and direction
-of the force.
+As of version 1.00, forces may no longer modify the particles themselves.
+Instead, they are to return three values indication x,y,z components of
+the force vector. Furthermore, the acceleration is calculated from the force
+according to special relativity.
 
-Additionally, external force fields are currently not implemented.
+Physics::Particles can only simulate forces between I<any> two particles.
+A particle cannot excert a force on itself. (The force subroutine isn't even
+called if the excerter particle and the particle-to-be-moved are identical.)
+
+To alleviate this shortcoming, there are the Physics::Springs and
+Physics::Springs::Friction modules which subclass Physics::Particles to extend
+it towards forces between two I<specific> particles (Physics::Springs) and
+force fields (Physics::Springs::Friction).
 
 =head2 Methods
 
@@ -347,7 +386,9 @@ Attributes default to whatever has been set using
 set_particle_default.
 A new particle represented by the attributes is then
 created in the simulation and its particle number is
-returned.
+returned. Attributes starting with an underscore are
+reserved to internal attributes (so don't use any of them).
+
 
 =item remove_particle
 
@@ -374,16 +415,20 @@ This method adds a new force to the simulation.
 It takes a subroutine reference (the force) as argument,
 appends it to the list of forces and returns the force it
 just appended.
+Second argument to add_force() is optional and defaults to false.
+It is a boolean indicating whether or not the force is symmetric.
+Symmetric means that the force particle1 excerts on particle2
+is exactly zero minus the force particle2 excerts on particle1.
 
 =item iterate_step
 
 This method applies all forces (excerted by every particle) to all particles.
-That means this is of complexity no_particles*no_particles*forces.
-Takes a list of additional parameters as argument that will be
-passed to every force subroutine. (This could, for example, be
+That means this is of complexity no_particles * (no_particles-1) * forces.
+( O(n**2 * m) or O(n**3) )
+iterate_step() takes a list of additional parameters as argument that will be
+passed to every force subroutine. (The first argument should be
 the duration of the iteration so the forces know how to calculate
-the effects on the particles (F=m*a if you neglect relativistic
-effects).
+the effects on the particles.
 
 =item dump_state
 
@@ -403,6 +448,13 @@ modify it under the same terms as Perl itself.
 
 =head1 SEE ALSO
 
-L<perl>, L<Math::Project3D>, L<Math::Project3D::Plot>
+You may find the newest version of this module on CPAN or
+http://steffen-mueller.net
+
+For more elaborate simulations:
+L<Physics::Springs>, L<Physics::Springs::Friction>
+
+For a reasonably convenient way of visualizing the produced data:
+L<Math::Project3D>, L<Math::Project3D::Plot>
 
 =cut

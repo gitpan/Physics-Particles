@@ -4,6 +4,11 @@ Physics::Particles version 1.00
 This module simulates a system of particles and the forces they
 excert on one another.
 
+As of version 1.00, there has been a major interface change and hence,
+version 1.00 and later are not compatible to versions before 1.00.
+Furthermore, Physics::Particles version 1.00 is not compatible to
+versions of Physics::Springs and Physics::Springs::Friction below 1.00.
+
 INSTALLATION
 
 To install this module type the following:
@@ -28,6 +33,11 @@ Some examples may need any of the following distributions:
 
 The distribution might work with earlier versions of the modules
 listed above, but I have not tested with any earlier versions.
+
+SEE ALSO
+
+You may find the newest versions of this module on CPAN or
+http://steffen-mueller.net
 
 COPYRIGHT AND LICENCE
 

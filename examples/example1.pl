@@ -26,30 +26,35 @@ ok(ref $sim eq 'Physics::Particles', "Simulator created.");
 
 $sim->add_force(
    sub {
-      my $p = shift;
-      my $excerter = shift;
-      my $params = shift;
-      my $time_diff = $params->[0];
+	my $p = shift;
+	my $excerter = shift;
+	my $params = shift;
+	my $time_diff = $params->[0];
 
-      my $dist = sqrt(
-                       ( AU * ($p->{x} - $excerter->{x}) )**2 +
-                       ( AU * ($p->{y} - $excerter->{y}) )**2 +
-                       ( AU * ($p->{z} - $excerter->{z}) )**2
-                 );
-      my $acc = ($dist==0 ? 0 : G * $excerter->{m} * MEARTH / $dist**2 );
-      $acc = [ map { $acc * AU * ($excerter->{$_} - $p->{$_}) } qw/x y z/ ];
+	my $x_dist = ($excerter->{x} - $p->{x});
+	my $y_dist = ($excerter->{y} - $p->{y});
+	my $z_dist = ($excerter->{z} - $p->{z});
 
-      $p->{x}  += $p->{vx} * $time_diff +
-                  $acc->[0]*0.5*$time_diff**2/AU;
-      $p->{y}  += $p->{vy} * $time_diff +
-                  $acc->[1]*0.5*$time_diff**2/AU;
-      $p->{z}  += $p->{vz} * $time_diff +
-                  $acc->[2]*0.5*$time_diff**2/AU;
+	my $dist = sqrt($x_dist**2 + $y_dist**2 + $z_dist**2);
+	
+	# force = m1*m2*unit_vector_from_r1_to_r2/distance**2
+	# a = f/m1 (module does that for us)
 
-      $p->{vx} += $acc->[0]*$time_diff/AU;
-      $p->{vy} += $acc->[1]*$time_diff/AU;
-      $p->{vz} += $acc->[2]*$time_diff/AU;
+	my $const = (((G * MEARTH) / AU) / AU);
+	my $force =
+		(
+			$dist == 0 ? 0 :
+			$const * $p->{m} * $excerter->{m} / $dist**3
+			#const = (G * MEARTH / AU / AU)
+		);
+
+	return(
+		$force * $x_dist,
+		$force * $y_dist,
+		$force * $z_dist,
+	);
    },
+   1 # symmetric force
 );
 
 ok(1, "add_force did not croak.");
