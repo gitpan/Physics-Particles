@@ -1,0 +1,9 @@
+Revision history for Perl extension Physics::Particles.
+
+0.10  Wed Mar 26 12:32:56 2003
+	- Namespace changed from Simulation::Particle to
+	  Physics::Particle as suggested on the modules list.
+	- Several small bugfixes I forgot about.
+
+0.02  Fri Jan 31 12:58:10 2003
+	- original version as uploaded to CPAN.
