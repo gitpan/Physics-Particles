@@ -17,7 +17,7 @@ use Carp;
 use Data::Dumper;
 
 use vars qw/$VERSION/;
-$VERSION = '1.00';
+$VERSION = '1.01';
 
 
 # constructor new
@@ -442,7 +442,7 @@ Steffen Mueller, mail at steffen-mueller dot net
 
 =head1 COPYRIGHT
 
-Copyright (c) 2002-2003 Steffen Mueller. All rights reserved.
+Copyright (c) 2002-2005 Steffen Mueller. All rights reserved.
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 
@@ -458,3 +458,4 @@ For a reasonably convenient way of visualizing the produced data:
 L<Math::Project3D>, L<Math::Project3D::Plot>
 
 =cut
+

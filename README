@@ -1,4 +1,4 @@
-Physics::Particles version 1.00
+Physics::Particles version 1.01
 ===============================
 
 This module simulates a system of particles and the forces they
@@ -13,6 +13,20 @@ INSTALLATION
 
 To install this module type the following:
 
+   perl Build.PL
+   ./Build
+   ./Build test
+   ./Build install
+
+On platforms that don't support the "./" notation, that would be:
+
+   perl Build.PL
+   perl Build
+   perl Build test
+   perl Build install
+
+If you wish, you may use the old MakeMaker style instead:
+
    perl Makefile.PL
    make
    make test
@@ -23,16 +37,13 @@ DEPENDENCIES
 
 This module requires these other modules and libraries:
 
-  Test::More (version 0.44 or newer)
-  Data::Dumper (version 2 or newer)
+  Test::More
+  Data::Dumper
 
 Some examples may need any of the following distributions:
 
   Math::Project3D
   Math::Project3D::Plot
-
-The distribution might work with earlier versions of the modules
-listed above, but I have not tested with any earlier versions.
 
 SEE ALSO
 
@@ -41,7 +52,7 @@ http://steffen-mueller.net
 
 COPYRIGHT AND LICENCE
 
-Copyright (c) 2002-2003 Steffen Mueller. All rights reserved.
+Copyright (c) 2002-2005 Steffen Mueller. All rights reserved.
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 

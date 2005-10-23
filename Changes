@@ -1,6 +1,10 @@
 Revision history for Perl extension Physics::Particles.
 
-1.00  Sun Jul 6 17:54:49 2003
+1.01  Mon Oct 10 21:25:38 2005
+	- Switched to Module::Build
+	- Generate distribution upgrades.
+
+1.00  Sun Jul  6 17:54:49 2003
 	- Interface changes!
 	- Rewrote parts of the module to increase accuracy
 	- Forces aren't supposed to modify particles directly now

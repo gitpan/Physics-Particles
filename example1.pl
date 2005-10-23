@@ -6,7 +6,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 6;
+use Test::More tests => 3;
 
 use lib 'lib';
 
@@ -15,17 +15,16 @@ ok(1, "Module loaded."); # If we made it this far, we're ok.
 
 #########################
 
-use constant G      => 6.67e-11;
-use constant MEARTH => 5.972E24;
+use constant G      => 6.67259e-11;
+use constant MEARTH => 5.975e24;
 use constant AU     => 149597870691;
-use constant DAY    => 60*60*24;
 
 my $sim = Physics::Particles->new();
 
 ok(ref $sim eq 'Physics::Particles', "Simulator created.");
 
 $sim->add_force(
-   sub {
+	sub {
 	my $p = shift;
 	my $excerter = shift;
 	my $params = shift;
@@ -128,7 +127,7 @@ $sim->add_particle(
 
 ok(1, "add_particle did not croak.");
 
-my $iterations = 10;
+my $iterations = 1000;
 my @pos = ([],[],[],[],[],[]);
 foreach (1..$iterations) {
    my $p_no = 0;
@@ -136,11 +135,80 @@ foreach (1..$iterations) {
      push @{$pos[$p_no]}, [ $p->{x}, $p->{y}, $p->{z} ];
      $p_no++;
    }
-   $sim->iterate_step(1);
+   $sim->iterate_step(.1);
 }
 
-ok(1, "iterate_step() did not croak.");
+use Math::Project3D::Plot;
 
-my $state = $sim->dump_state();
+my $img = Imager->new(xsize=>1024,ysize=>768);
+my $proj = Math::Project3D->new(
+   plane_basis_vector => [ 0, 0, 0 ],
+   plane_direction1   => [ 0.371391, 0.928477, 0 ],
+   plane_direction2   => [ 0.371391, 0, 0.928477 ],
+);
 
-ok(1, "dump_state() did not croak.");
+$proj->new_function(
+  sub { $pos[$_[0]][$_[1]][0] },
+  sub { $pos[$_[0]][$_[1]][1] },
+  sub { $pos[$_[0]][$_[1]][2] },
+);
+
+my @color;
+#my $col = 0;
+#foreach (1..6) {
+#   push @color, Imager::Color->new($col,   $col*($_ % 2), 0);
+#   $col += 50;
+#}
+
+push @color, Imager::Color->new( 255, 255, 0   ); # sun
+push @color, Imager::Color->new( 0,   255, 0   ); # mercury
+push @color, Imager::Color->new( 255, 0,   255 ); # venus
+push @color, Imager::Color->new( 0,   0,   255 ); # earth
+push @color, Imager::Color->new( 255, 255, 255 ); # moon
+push @color, Imager::Color->new( 255, 0,   0   ); # mars
+
+my $x_axis     = Imager::Color->new(40, 40, 40);
+my $y_axis     = Imager::Color->new(40, 40, 40);
+my $z_axis     = Imager::Color->new(40, 40, 40);
+my $background = Imager::Color->new(0,   0, 0);
+
+$img->flood_fill(x=>0,y=>0,color=>$background);
+
+my $plotter = Math::Project3D::Plot->new(
+  image      => $img,
+  projection => $proj,
+  scale      => 400,
+);
+
+$plotter->plot_axis( # x axis
+  vector => [1, 0, 0],
+  color  => $x_axis,
+  length => 100,
+);
+
+$plotter->plot_axis( # y axis
+  vector => [0, 1, 0],
+  color  => $y_axis,
+  length => 100,
+);
+
+$plotter->plot_axis( # z axis
+  vector => [0, 0, 1],
+  color  => $z_axis,
+  length => 100,
+);
+
+
+foreach (0..5) {
+   $plotter->plot_range(
+     color  => $color[$_],
+     params => [
+                 [$_],
+                 [0, $iterations-1, 1],
+               ],
+     type   => 'line',
+   );
+}
+
+$img->write(file=>'t.png') or
+        die $img->errstr;
