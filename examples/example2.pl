@@ -18,6 +18,7 @@ use Math::Project3D::Plot;
 
 my $sim = Physics::Particles->new();
    $sim->add_force(
+   sub {
 	my $p = shift;
 	my $excerter = shift;
 	my $params = shift;

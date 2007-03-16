@@ -1,5 +1,8 @@
 Revision history for Perl extension Physics::Particles.
 
+1.02  Fri Mar 16 19:33:12 2007
+  - Corrected bug in examples/example2.pl
+
 1.01  Mon Oct 10 21:25:38 2005
 	- Switched to Module::Build
 	- Generate distribution upgrades.

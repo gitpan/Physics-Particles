@@ -2,13 +2,14 @@
 use ExtUtils::MakeMaker;
 WriteMakefile
 (
-          'PL_FILES' => {},
-          'INSTALLDIRS' => 'site',
           'NAME' => 'Physics::Particles',
           'VERSION_FROM' => 'lib/Physics/Particles.pm',
           'PREREQ_PM' => {
-                           'Test::More' => 0,
-                           'Data::Dumper' => '0'
-                         }
+                           'Data::Dumper' => '0',
+                           'Test::More' => '0'
+                         },
+          'INSTALLDIRS' => 'site',
+          'EXE_FILES' => [],
+          'PL_FILES' => {}
         )
 ;
